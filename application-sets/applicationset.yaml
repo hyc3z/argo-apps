@@ -7,7 +7,7 @@ spec:
   generators:
     - scmProvider:
         github:
-          owner: hyc3z
+          organization: qianxue-world
           api: "https://api.github.com/"
           tokenRef:
             secretName: github-token
