@@ -25,5 +25,14 @@ argocd app create bubba-root \
 
 5. Update /k8s file in projects
 
-Tell cursor/kiro
+Tell cursor/kiro to generate 
 
+```
+I want to create /k8s files for this project so that my argo-cd service can detect and auto deploy.
+```
+
+TIPS:
+
+- Github only supports list repo by organization for now.
+- User https instead of ssh to sync
+- Remove rewrite target in Ingress/Nginx config if you want to keep parameters in url
