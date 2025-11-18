@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: lovetest-auto-discover
+  namespace: argocd
+spec:
+  generators:
+    - scmProvider:
+        github:
+          owner: hyc3z
+          api: "https://api.github.com/"
+          tokenRef:
+            secretName: github-token
+            key: token
+          allBranches: true
+          filters:
+            - repositoryMatch: "lovetest-*"
+  template:
+    metadata:
+      name: '{{repository}}'
+    spec:
+      project: default
+      source:
+        repoURL: '{{url}}'
+        targetRevision: HEAD
+        path: k8s/
+      destination:
+        server: 'https://kubernetes.default.svc'
+        namespace: '{{repository}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
