@@ -7,7 +7,7 @@ spec:
   generators:
     - scmProvider:
         github:
-          organization: hyc3z
+          owner: hyc3z
           api: "https://api.github.com/"
           tokenRef:
             secretName: github-token
