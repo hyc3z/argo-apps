@@ -7,7 +7,7 @@ spec:
   generators:
     - scmProvider:
         github:
-          owner: hyc3z
+          organization: hyc3z
           api: "https://api.github.com/"
           tokenRef:
             secretName: github-token
@@ -33,3 +33,6 @@ spec:
           selfHeal: true
         syncOptions:
         - CreateNamespace=true
+        retry:
+          limit: 5
+        syncWindow: "*/3 * * * *"
