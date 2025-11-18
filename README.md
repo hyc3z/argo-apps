@@ -36,3 +36,4 @@ TIPS:
 - Github only supports list repo by organization for now.
 - User https instead of ssh to sync
 - Remove rewrite target in Ingress/Nginx config if you want to keep parameters in url
+- If you have `endpoints NONE` issue, means service can't match any pods. Check k8s files generated.
