@@ -53,7 +53,7 @@ Install cluster issuer
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: letsencrypt-staging
+  name: letsencrypt-prod
 spec:
   acme:
     # You must replace this email address with your own.
@@ -63,7 +63,7 @@ spec:
     # If the ACME server supports profiles, you can specify the profile name here.
     # See #acme-certificate-profiles below.
     profile: tlsserver
-    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       # Secret resource that will be used to store the account's private key.
       # This is your identity with your ACME provider. Any secret name may be
@@ -73,7 +73,7 @@ spec:
       # certificates for any/all domains managed using your previous account,
       # but you will be unable to revoke any certificates generated using that
       # previous account.
-      name: example-issuer-account-key
+      name: letsencrypt-prod-account-key
     # Add a single challenge solver, HTTP01 using nginx
     solvers:
     - http01:
@@ -119,7 +119,7 @@ I want to create /k8s files for this project so that my argo-cd service can dete
 - Github only supports list repo by organization for now.
 - User https instead of ssh to sync
 - Remove rewrite target in Ingress/Nginx config if you want to keep parameters in url
-- remember to add `cert-manager.io/cluster-issuer: "letsencrypt-staging"` to auto get cert
+- remember to add `cert-manager.io/cluster-issuer: "letsencrypt-prod"` to auto get cert. Let's encrypt supports `staging` cert for testing purpose, not trusted by browsers.
 
 ### Overall FAQ:
 
@@ -140,4 +140,39 @@ kubectl create secret tls lovetest-api-tls \
   --cert tls.crt
 
 # After generate keys, can delete source .key/.crt files
+```
+
+- staging issuer
+Install cluster issuer
+
+```
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    # You must replace this email address with your own.
+    # Let's Encrypt will use this to contact you about expiring
+    # certificates, and issues related to your account.
+    email: user@example.com
+    # If the ACME server supports profiles, you can specify the profile name here.
+    # See #acme-certificate-profiles below.
+    profile: tlsserver
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      # Secret resource that will be used to store the account's private key.
+      # This is your identity with your ACME provider. Any secret name may be
+      # chosen. It will be populated with data automatically, so generally
+      # nothing further needs to be done with the secret. If you lose this
+      # identity/secret, you will be able to generate a new one and generate
+      # certificates for any/all domains managed using your previous account,
+      # but you will be unable to revoke any certificates generated using that
+      # previous account.
+      name: example-issuer-account-key
+    # Add a single challenge solver, HTTP01 using nginx
+    solvers:
+    - http01:
+        ingress:
+          ingressClassName: nginx
 ```
