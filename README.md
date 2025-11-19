@@ -48,6 +48,7 @@ helm install \
 ```
 
 Install cluster issuer
+Remember to change email below in yaml, otherwise issuer will fail.
 
 ```
 apiVersion: cert-manager.io/v1
@@ -124,6 +125,7 @@ I want to create /k8s files for this project so that my argo-cd service can dete
 ### Overall FAQ:
 
 - If you have `endpoints NONE` issue, means service can't match any pods. Check k8s files generated.
+- Failed to register ACME account: 400 urn:ietf:params:acme:error:invalidContact: Error validating contact(s) :: contact email has forbidden domain "example.com" means you need to change your email to real email in issuer config
 
 ### For test only:
 
