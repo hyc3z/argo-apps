@@ -82,6 +82,11 @@ spec:
           ingressClassName: nginx
 ```
 
+To debug, use
+```
+kubectl get Issuers,ClusterIssuers,Certificates,CertificateRequests,Orders,Challenges --all-namespaces
+```
+
 ### 1. New PAT token
 
 Go to `Settings` -> `Developer settings` -> `Personal access tokens`
