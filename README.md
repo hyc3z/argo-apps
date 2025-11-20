@@ -126,11 +126,62 @@ I want to create /k8s files for this project so that my argo-cd service can dete
 - User https instead of ssh to sync
 - Remove rewrite target in Ingress/Nginx config if you want to keep parameters in url
 - remember to add `cert-manager.io/cluster-issuer: "letsencrypt-prod"` to auto get cert. Let's encrypt supports `staging` cert for testing purpose, not trusted by browsers.
+- remember to add `managed-by: argocd` in kustomization so that argocd has control to resources created.
+- For ingress controller for api, need to configure cors. Example:
+```
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lovetest-api
+  namespace: lovetest
+  labels:
+    app: lovetest-api
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # CORS配置
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+    nginx.ingress.kubernetes.io/cors-expose-headers: "Content-Length,Content-Range"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - api.lovetest.com.cn
+    secretName: lovetest-api-tls
+  rules:
+  - host: api.lovetest.com.cn
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: lovetest-api
+            port:
+              number: 80
+
+```
 
 ### Overall FAQ:
 
 - If you have `endpoints NONE` issue, means service can't match any pods. Check k8s files generated.
 - Failed to register ACME account: 400 urn:ietf:params:acme:error:invalidContact: Error validating contact(s) :: contact email has forbidden domain "example.com" means you need to change your email to real email in issuer config
+- ArcoCD session expired:
+```
+{"level":"fatal","msg":"rpc error: code = Unauthenticated desc = invalid session: token has invalid claims: token is expired","time":"2025-11-20T09:18:18+08:00"}
+```
+
+login again with below command:
+```
+kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+argocd login localhost:8080 --username admin --password $(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) --insecure
+```
+- If version is stuck, check CI pipeline first to see if build fails. (Notification?)
+- For pod logs, add `--previous` after `kubectl logs ...` to see last run errors.
 
 ### For test only:
 
