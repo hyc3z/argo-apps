@@ -165,6 +165,13 @@ spec:
               number: 80
 
 ```
+- For namespace, each app need to has its own namespace. Otherwise, ArgoCD will stuck in conflict loop.
+- Be careful with `startupProbe`, `livenessProbe` and `readinessProbe`, as they may not be implemented in your service, while generated in yaml file.
+- sqlite is relational database. AI generated code can easily modify database models, which may not work for relational database. 
+- For image tag, if you set to `myimage:latest`, could happen: 
+a. You submitted a commit (merged a PR)
+b. ArgoCD detected change (based on git), and triggered update. But the github CI for building image is not completed yet, **no update forever**!!!
+Possible solution is to use semver image tags instead of latest (update by precommit hook/ci pipeline/argo cd image updater).
 
 ### Overall FAQ:
 
