@@ -173,6 +173,10 @@ a. You submitted a commit (merged a PR)
 b. ArgoCD detected change (based on git), and triggered update. But the github CI for building image is not completed yet, **no update forever**!!!
 Possible solution is to use semver image tags instead of latest (update by precommit hook/ci pipeline/argo cd image updater).
 
+```
+Here is the thing: I need you to modify existing github pipeline to bump existing image version, build a new version of docker image every time I commit, and after build/publish to docker hub, create a commit to write the new version back to repo. Update kustomization file and deployment as well
+```
+
 ### Overall FAQ:
 
 - If you have `endpoints NONE` issue, means service can't match any pods. Check k8s files generated.
