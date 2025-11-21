@@ -1,30 +1,23 @@
-### Prerequisites:
+# ArgoCD K8s 部署指南
 
-- k3s
-- helm
-```
+## 一、环境准备
+
+### 1. 安装 Helm
+```bash
 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
 chmod 700 get_helm.sh
 ./get_helm.sh
 ```
 
-- ingress-nginx
+### 2. 安装 Ingress-Nginx
 
-Note : **don't** use apply -f to install, if you do please uninstall using same yaml:
-```
-kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.13.4/deploy/static/provider/cloud/deploy.yaml
-```
-
-k3s default comes with `Traefik` and may conflict, need uninstall:
-```
+卸载 k3s 自带的 Traefik（避免冲突）：
+```bash
 helm uninstall traefik -n kube-system
 ```
 
-Install with helm
-
-这里用LoadBalancer类型也行，但是因为我用的是腾讯云轻量服务器，不提供端口映射。
-
-```
+使用 Helm 安装（NodePort 模式，适用于腾讯云轻量服务器）：
+```bash
 helm upgrade --install ingress-nginx ingress-nginx \
   --repo https://kubernetes.github.io/ingress-nginx \
   --namespace ingress-nginx --create-namespace \
@@ -33,75 +26,55 @@ helm upgrade --install ingress-nginx ingress-nginx \
   --set controller.service.nodePorts.https=443
 ```
 
-- Let's encrypt
-```
-# Add the Jetstack Helm repository
-helm repo add jetstack https://charts.jetstack.io --force-update
+### 3. 安装 Cert-Manager
 
-# Install the cert-manager helm chart
-helm install \
-  cert-manager jetstack/cert-manager \
+```bash
+helm repo add jetstack https://charts.jetstack.io --force-update
+helm install cert-manager jetstack/cert-manager \
   --namespace cert-manager \
   --create-namespace \
   --version v1.19.1 \
   --set crds.enabled=true
 ```
 
-Install cluster issuer
-Remember to change email below in yaml, otherwise issuer will fail.
-
-```
+创建 ClusterIssuer（记得修改邮箱地址）：
+```yaml
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: letsencrypt-prod
 spec:
   acme:
-    # You must replace this email address with your own.
-    # Let's Encrypt will use this to contact you about expiring
-    # certificates, and issues related to your account.
-    email: user@example.com
-    # If the ACME server supports profiles, you can specify the profile name here.
-    # See #acme-certificate-profiles below.
-    profile: tlsserver
+    email: your-email@example.com  # 修改为你的邮箱
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
-      # Secret resource that will be used to store the account's private key.
-      # This is your identity with your ACME provider. Any secret name may be
-      # chosen. It will be populated with data automatically, so generally
-      # nothing further needs to be done with the secret. If you lose this
-      # identity/secret, you will be able to generate a new one and generate
-      # certificates for any/all domains managed using your previous account,
-      # but you will be unable to revoke any certificates generated using that
-      # previous account.
       name: letsencrypt-prod-account-key
-    # Add a single challenge solver, HTTP01 using nginx
     solvers:
     - http01:
         ingress:
           ingressClassName: nginx
 ```
 
-To debug, use
-```
+调试命令：
+```bash
 kubectl get Issuers,ClusterIssuers,Certificates,CertificateRequests,Orders,Challenges --all-namespaces
 ```
 
-### 1. New PAT token
+## 二、配置 ArgoCD
 
-Go to `Settings` -> `Developer settings` -> `Personal access tokens`
+### 1. 创建 GitHub PAT Token
+进入 GitHub：`Settings` → `Developer settings` → `Personal access tokens`
 
-### 2. Generate github token in k8s
-
+### 2. 在 K8s 中创建 Secret
+```bash
+kubectl create secret generic github-token -n argocd --from-literal=token=你的PAT
 ```
-kubectl create secret generic github-token -n argocd --from-literal=token=YourPAT
-```
 
-### 3. Update applicationset.yaml
+### 3. 更新 applicationset.yaml
+根据实际情况修改配置文件
 
-### 4. Create argocd app
-
-```
+### 4. 创建 ArgoCD 应用
+```bash
 argocd app create bubba-root \
   --repo https://github.com/hyc3z/argo-apps.git \
   --path . \
@@ -112,134 +85,103 @@ argocd app create bubba-root \
   --auto-prune --self-heal
 ```
 
-### 5. Update /k8s file in projects
+## 三、项目配置要点
 
-Tell cursor/kiro to generate 
-
+### K8s 配置文件生成
+可以让 AI 助手生成：
 ```
 I want to create /k8s files for this project so that my argo-cd service can detect and auto deploy.
 ```
 
-### TIPS for step #5:
+### 关键配置注意事项
 
-- Github only supports list repo by organization for now.
-- User https instead of ssh to sync
-- Remove rewrite target in Ingress/Nginx config if you want to keep parameters in url
-- remember to add `cert-manager.io/cluster-issuer: "letsencrypt-prod"` to auto get cert. Let's encrypt supports `staging` cert for testing purpose, not trusted by browsers.
-- remember to add `managed-by: argocd` in kustomization so that argocd has control to resources created.
-- For ingress controller for api, need to configure cors. Example:
-```
+1. **命名空间**：每个应用使用独立的 namespace，避免 ArgoCD 冲突
+2. **证书自动签发**：在 Ingress 中添加 `cert-manager.io/cluster-issuer: "letsencrypt-prod"`
+3. **ArgoCD 管理标签**：在 kustomization 中添加 `managed-by: argocd`
+4. **同步方式**：使用 HTTPS 而非 SSH
+5. **URL 参数保留**：如需保留 URL 参数，移除 Ingress 中的 rewrite-target
+6. **健康检查**：谨慎使用 `startupProbe`、`livenessProbe`、`readinessProbe`，确保服务已实现
+
+### API CORS 配置示例
+```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: lovetest-api
-  namespace: lovetest
-  labels:
-    app: lovetest-api
+  name: api-ingress
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    # CORS配置
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-origin: "*"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
     nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
-    nginx.ingress.kubernetes.io/cors-expose-headers: "Content-Length,Content-Range"
-    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
-    nginx.ingress.kubernetes.io/cors-max-age: "86400"
 spec:
   ingressClassName: nginx
   tls:
   - hosts:
-    - api.lovetest.com.cn
-    secretName: lovetest-api-tls
+    - api.example.com
+    secretName: api-tls
   rules:
-  - host: api.lovetest.com.cn
+  - host: api.example.com
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: lovetest-api
+            name: api-service
             port:
               number: 80
-
-```
-- For namespace, each app need to has its own namespace. Otherwise, ArgoCD will stuck in conflict loop.
-- Be careful with `startupProbe`, `livenessProbe` and `readinessProbe`, as they may not be implemented in your service, while generated in yaml file.
-- sqlite is relational database. AI generated code can easily modify database models, which may not work for relational database. 
-- For image tag, if you set to `myimage:latest`, could happen: 
-a. You submitted a commit (merged a PR)
-b. ArgoCD detected change (based on git), and triggered update. But the github CI for building image is not completed yet, **no update forever**!!!
-Possible solution is to use semver image tags instead of latest (update by precommit hook/ci pipeline/argo cd image updater).
-
-```
-Here is the thing: I need you to modify existing github pipeline to bump existing image version, build a new version of docker image every time I commit, and after build/publish to docker hub, create a commit to write the new version back to repo. Update kustomization file and deployment as well
 ```
 
-### Overall FAQ:
+### 镜像版本管理
+避免使用 `latest` 标签，推荐使用语义化版本（semver）：
+- 问题：ArgoCD 检测到 Git 变更触发更新，但 CI 构建镜像尚未完成
+- 解决：使用 precommit hook / CI pipeline / ArgoCD Image Updater 自动更新版本号
 
-- If you have `endpoints NONE` issue, means service can't match any pods. Check k8s files generated.
-- Failed to register ACME account: 400 urn:ietf:params:acme:error:invalidContact: Error validating contact(s) :: contact email has forbidden domain "example.com" means you need to change your email to real email in issuer config
-- ArcoCD session expired:
-```
-{"level":"fatal","msg":"rpc error: code = Unauthenticated desc = invalid session: token has invalid claims: token is expired","time":"2025-11-20T09:18:18+08:00"}
-```
+## 四、常见问题
 
-login again with below command:
-```
+### 部署问题
+- **endpoints NONE**：Service 无法匹配 Pod，检查 label selector
+- **证书签发失败**：检查 ClusterIssuer 中的邮箱是否为真实邮箱（不能用 example.com）
+- **版本卡住不更新**：检查 CI pipeline 是否构建失败
+
+### ArgoCD 会话过期
+```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443 &
-argocd login localhost:8080 --username admin --password $(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) --insecure
+argocd login localhost:8080 --username admin \
+  --password $(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) \
+  --insecure
 ```
-- If version is stuck, check CI pipeline first to see if build fails. (Notification?)
-- For pod logs, add `--previous` after `kubectl logs ...` to see last run errors.
 
-### For test only:
-
-- generate tls keys
+### 查看 Pod 日志
+查看上一次运行的错误日志：
+```bash
+kubectl logs <pod-name> --previous
 ```
-# 生成自签名证书（仅用于测试）
+
+## 五、测试环境配置
+
+### 生成自签名证书
+```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout tls.key -out tls.crt \
-  -subj "/CN=api.lovetest.com.cn"
+  -subj "/CN=api.example.com"
 
-# 创建 TLS secret
-kubectl create secret tls lovetest-api-tls \
-  --key tls.key \
-  --cert tls.crt
-
-# After generate keys, can delete source .key/.crt files
+kubectl create secret tls api-tls --key tls.key --cert tls.crt
 ```
 
-- staging issuer
-Install cluster issuer
-
-```
+### 使用 Let's Encrypt Staging 环境
+```yaml
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: letsencrypt-staging
 spec:
   acme:
-    # You must replace this email address with your own.
-    # Let's Encrypt will use this to contact you about expiring
-    # certificates, and issues related to your account.
-    email: user@example.com
-    # If the ACME server supports profiles, you can specify the profile name here.
-    # See #acme-certificate-profiles below.
-    profile: tlsserver
+    email: your-email@example.com
     server: https://acme-staging-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
-      # Secret resource that will be used to store the account's private key.
-      # This is your identity with your ACME provider. Any secret name may be
-      # chosen. It will be populated with data automatically, so generally
-      # nothing further needs to be done with the secret. If you lose this
-      # identity/secret, you will be able to generate a new one and generate
-      # certificates for any/all domains managed using your previous account,
-      # but you will be unable to revoke any certificates generated using that
-      # previous account.
-      name: example-issuer-account-key
-    # Add a single challenge solver, HTTP01 using nginx
+      name: letsencrypt-staging-account-key
     solvers:
     - http01:
         ingress:
