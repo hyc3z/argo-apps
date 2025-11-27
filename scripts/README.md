@@ -67,3 +67,5 @@ python create_github_repo.py
 - 确保你是 qianxue-world 组织的成员且有创建仓库的权限
 - Secrets 会被加密存储，无法读取
 - Variables 是明文存储的配置值
+
+确保只有localhost下能进入测试模式

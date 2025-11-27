@@ -1,0 +1,2 @@
+1. 生成截图报告
+把npm run screenshot改成测试模式 随机生成20个分数然后展示对应的报告 不要留漏洞 确保只有本地能使用 一定要包含极值（最小和最大）puppeteer的headless模式记得改成false
