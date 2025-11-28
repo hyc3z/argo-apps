@@ -228,6 +228,70 @@ def cleanup_screenshots(project_path: Path) -> bool:
         return False
 
 
+def update_package_name(project_path: Path, new_name: str) -> bool:
+    """
+    更新 package.json 和 package-lock.json 中的项目名称
+    
+    Args:
+        project_path: 项目路径
+        new_name: 新项目名称
+        
+    Returns:
+        bool: 更新是否成功
+    """
+    print(f"\n更新 package.json 项目名称...")
+    
+    success = True
+    
+    # 更新 package.json
+    package_json_path = project_path / "package.json"
+    if package_json_path.exists():
+        try:
+            with open(package_json_path, 'r', encoding='utf-8') as f:
+                package_data = json.load(f)
+            
+            old_name = package_data.get('name', 'unknown')
+            package_data['name'] = new_name
+            
+            with open(package_json_path, 'w', encoding='utf-8') as f:
+                json.dump(package_data, f, indent=2, ensure_ascii=False)
+                f.write('\n')  # 添加结尾换行符
+            
+            print(f"✓ package.json: {old_name} → {new_name}")
+        except Exception as e:
+            print(f"✗ 更新 package.json 失败: {e}")
+            success = False
+    else:
+        print(f"  package.json 不存在，跳过")
+    
+    # 更新 package-lock.json
+    package_lock_path = project_path / "package-lock.json"
+    if package_lock_path.exists():
+        try:
+            with open(package_lock_path, 'r', encoding='utf-8') as f:
+                lock_data = json.load(f)
+            
+            old_name = lock_data.get('name', 'unknown')
+            lock_data['name'] = new_name
+            
+            # 同时更新 packages[""] 中的 name（如果存在）
+            if 'packages' in lock_data and '' in lock_data['packages']:
+                lock_data['packages']['']['name'] = new_name
+            
+            with open(package_lock_path, 'w', encoding='utf-8') as f:
+                json.dump(lock_data, f, indent=2, ensure_ascii=False)
+                f.write('\n')  # 添加结尾换行符
+            
+            print(f"✓ package-lock.json: {old_name} → {new_name}")
+        except Exception as e:
+            print(f"✗ 更新 package-lock.json 失败: {e}")
+            success = False
+    else:
+        print(f"  package-lock.json 不存在，跳过")
+    
+    return success
+
+
 def update_k8s_project_name(project_path: Path, repo_name: str) -> bool:
     """
     运行 Node.js 脚本更新 K8s 项目名称
@@ -510,6 +574,9 @@ def main():
         
         # 清理 screenshot 文件夹
         cleanup_screenshots(new_project_path)
+        
+        # 更新 package.json 和 package-lock.json 中的项目名
+        update_package_name(new_project_path, repo_name)
         
         # 设置 Git remote
         setup_git_remote(new_project_path, manager.org, repo_name)
