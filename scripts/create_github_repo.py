@@ -191,6 +191,43 @@ def copy_template_project(template_path: str, new_project_name: str, target_dir:
     return new_project_path
 
 
+def cleanup_screenshots(project_path: Path) -> bool:
+    """
+    清理 screenshot 文件夹下的所有文件
+    
+    Args:
+        project_path: 项目路径
+        
+    Returns:
+        bool: 清理是否成功
+    """
+    print(f"\n清理 screenshot 文件夹...")
+    
+    screenshot_dir = project_path / "screenshot"
+    
+    if not screenshot_dir.exists():
+        print(f"  screenshot 文件夹不存在，跳过")
+        return True
+    
+    try:
+        # 删除文件夹下的所有文件
+        file_count = 0
+        for item in screenshot_dir.iterdir():
+            if item.is_file():
+                item.unlink()
+                file_count += 1
+            elif item.is_dir():
+                shutil.rmtree(item)
+                file_count += 1
+        
+        print(f"✓ 已清理 {file_count} 个文件/文件夹")
+        return True
+        
+    except Exception as e:
+        print(f"✗ 清理失败: {e}")
+        return False
+
+
 def update_k8s_project_name(project_path: Path, repo_name: str) -> bool:
     """
     运行 Node.js 脚本更新 K8s 项目名称
@@ -470,6 +507,9 @@ def main():
     if template_path:
         target_dir = os.getenv("PROJECTS_DIR")
         new_project_path = copy_template_project(template_path, repo_name, target_dir)
+        
+        # 清理 screenshot 文件夹
+        cleanup_screenshots(new_project_path)
         
         # 设置 Git remote
         setup_git_remote(new_project_path, manager.org, repo_name)
