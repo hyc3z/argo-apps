@@ -13,8 +13,8 @@ spec:
             secretName: github-token
             key: token
           allBranches: true
-          filters:
-            - repositoryMatch: "lovetest-*"
+        filters:
+          - repositoryMatch: "lovetest-*"
   template:
     metadata:
       name: '{{repository}}'

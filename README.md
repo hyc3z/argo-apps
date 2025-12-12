@@ -45,7 +45,7 @@ metadata:
   name: letsencrypt-prod
 spec:
   acme:
-    email: your-email@example.com  # 修改为你的邮箱
+    email: tubao9hao@126.com  # 修改为你的邮箱
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: letsencrypt-prod-account-key
@@ -75,9 +75,9 @@ kubectl create secret generic github-token -n argocd --from-literal=token=你的
 
 ### 4. 创建 ArgoCD 应用
 ```bash
-argocd app create bubba-root \
-  --repo https://github.com/hyc3z/argo-apps.git \
-  --path . \
+argocd app create qianxue-root \
+  --repo https://github.com/hyc3z/qianxue-apps-v2 \
+  --path k8s \
   --dest-server https://kubernetes.default.svc \
   --dest-namespace argocd \
   --directory-recurse \
